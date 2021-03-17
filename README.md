@@ -90,7 +90,7 @@ if( $mesQ->messageExists() {
 ...
 ```
 
-For more detailed usage, read [MesQ] docs. For test, review test/test.sh. 
+For more detailed usage, read [MesQ] doc, ReleaseNotes and for test, review test/test.sh. 
 
 ## Installation
 

@@ -5,7 +5,7 @@
  * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * Link      https://kigkonsult.se
  * Package   MesQ
- * Version   1.0
+ * Version   1.05
  * License   Subject matter of licence is the software MesQ.
  *           The above copyright, link, package and version notices,
  *           this licence notice shall be included in all copies or
@@ -32,6 +32,7 @@ declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
 
 use DirectoryIterator;
+use Exception;
 use InvalidArgumentException;
 use RuntimeException;
 use function array_slice;
@@ -55,26 +56,41 @@ use function is_int;
 use function is_readable;
 use function is_writeable;
 use function microtime;
+use function print_r;
 use function reset;
 use function rtrim;
 use function serialize;
 use function sprintf;
 use function trim;
 use function unlink;
-use function var_export;
 
 /**
  * Class MesQ
+ *
+ * @since 1.03 - 2021-03-16
  */
 class MesQ implements MesQinterface
 {
-
     /**
-     * glob search file pattern
+     * Create file name pattern
      *
      * @var string
      */
-    private static $PATTERN = "?.*.*.*.*";
+    private static $CREATEPATTERN = '%d.%020d.%020d.%06d.';
+
+    /**
+     * glob search file name pattern
+     *
+     * @var string
+     */
+    private static $SEARCHPATTERN = "?.????????????????????.????????????????????.??????.?*";
+
+    /**
+     * Prio part of pattern if prio is array(min,max)
+     *
+     * @var string
+     */
+    private static $PRIOPATTERN = '[%d-%d]';
 
     /**
      * @var self
@@ -124,7 +140,7 @@ class MesQ implements MesQinterface
      */
 
     /**
-     * Message directory file names
+     * Messages directory file name array
      *
      * @var array
      */
@@ -222,7 +238,7 @@ class MesQ implements MesQinterface
      * Return config as array incl. process pid and (float) start timestamp
      *
      * @param string $key
-     * @return int|string|array
+     * @return int|string|bool|array  unknown key return bool false
      */
     public function getConfig( $key = null ) : array
     {
@@ -278,7 +294,6 @@ class MesQ implements MesQinterface
      */
     private function setConfig( array $config )
     {
-        static $FMT = 'Unknown key ';
         foreach( $config as $key => $value ) {
             switch( $key ) {
                 case self::QUEUENAME :
@@ -296,8 +311,6 @@ class MesQ implements MesQinterface
                 case self::RETURNCHUNKSIZE :
                     $this->setReturnChunkSize( $value );
                     break;
-                default :
-                    throw new InvalidArgumentException( $FMT . $key );
             } // end switch
         } // end foreach
         if( $this->isQueueNameSet() && ! $this->isDirectorySet()) {
@@ -306,7 +319,9 @@ class MesQ implements MesQinterface
     }
 
     /**
-     * @return string config incl. process pid and (float) start timestamp
+     * Return nice rendered config incl. process pid and (float) start timestamp
+     *
+     * @return string
      */
     public function configToString() : string
     {
@@ -324,16 +339,16 @@ class MesQ implements MesQinterface
     /**
      * One-liner, insert single message to queue
      *
-     * @param array $config   config array
-     * @param mixed $message
-     * @param mixed $message
-     * @param int   $priority   0 : lowest, 9 : highest
+     * @param array     $config   config array
+     * @param mixed     $message
+     * @param null|int  $priority   0 : lowest, 9 : highest
+     * @return void
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    public static function qPush( array $config, $message, $prio = null )
+    public static function qPush( array $config, $message, $priority = null )
     {
-        self::factory( $config )->push( $message, $prio );
+        self::factory( $config )->push( $message, $priority );
     }
 
     /**
@@ -350,22 +365,65 @@ class MesQ implements MesQinterface
      *     ...
      * </code>
      *
-     * @param mixed $message
-     * @param int   $priority   0 : lowest, 9 : highest
+     * @param mixed    $message
+     * @param null|int $priority   0 : lowest, 9 : highest
      * @return void
      * @throws RuntimeException
+     * @since 1.03 - 2021-03-16
      */
     public function push( $message, $priority = 0 )
     {
+        static $FMT3 = 'Queue \'%s\', serialize error, file %s, message : %s';
+        static $FMT4 = 'Queue \'%s\', error on write, file %s, message : %s';
+        $fileName    = $this->getFileName( $priority );
+        try {
+            $msg     = serialize( $message );
+        }
+        catch( Exception $e ) { // closure detected ?
+            throw new RuntimeException(
+                sprintf( $FMT3, $this->getQueueName(), $fileName, print_r( $message, true )),
+                $e
+            );
+        }
+        $result = file_put_contents( $fileName, $msg, LOCK_EX );
+        if(( false === $result ) || ( $result != strlen( $msg ))) {
+            throw new RuntimeException( sprintf( $FMT4, $this->getQueueName(), $fileName, $msg ));
+        }
+    }
+
+    /**
+     * @param null|int $priority
+     * @return string
+     */
+    private function getFileName( $priority = 0 ) : string
+    {
+        static $FMT2  = 'Queue \'%s\', error on finding unique filename %s';
+        list( $prio, $usec, $sec ) = self::getPrioUsecSec( $this->queueType, $priority );
+        $timestampPrf = sprintf( self::$CREATEPATTERN, $prio, $sec, $usec, $this->getPid());
+        $ix           = 0;
+        $fileName     = $this->directory . $timestampPrf . self::getSerial();
+        while( @is_file( $fileName )) {
+            $fileName = $this->directory . $timestampPrf . self::getSerial();
+            if( ++$ix > 10 ) { // emergency break??
+                throw new RuntimeException( sprintf( $FMT2, $this->getQueueName()));
+            }
+        } // end while
+        return $fileName;
+    }
+
+    /**
+     * @param string   $queueType
+     * @param null|int $priority
+     * @return array
+     */
+    private static function getPrioUsecSec( string $queueType, $priority = 0 ) : array
+    {
         static $SP1   = ' ';
-        static $FMT1  = '%s%d.%020d.%020d.%06d.';
-        static $FMT2  = 'Queue \'%s\' : error on finding unique filename %s, message : %s';
-        static $FMT3  = 'Queue \'%s\' : error on write, file %s, message : %s';
         list( $usec, $sec ) = explode( $SP1, microtime());
         $sec  = intval( $sec );
         $usec = intval( $usec * 1000000 );
         $prio = 0;
-        switch( $this->queueType ) {
+        switch( $queueType ) {
             case self::LIFO :
                 $sec  = PHP_INT_MAX - $sec;
                 $usec = PHP_INT_MAX - $usec;
@@ -377,20 +435,7 @@ class MesQ implements MesQinterface
             default : // FIFO
                 break;
         } // end switch
-        $timestampPrf = sprintf( $FMT1, $this->directory, $prio, $sec, $usec, $this->getPid());
-        $ix           = 0;
-        $fileName     = $timestampPrf . self::getSerial();
-        $msg          = serialize( $message );
-        while( @is_file( $fileName )) {
-            $fileName = $timestampPrf . self::getSerial();
-            if( ++$ix > 10 ) { // emergency break??
-                throw new RuntimeException( sprintf( $FMT2, $this->getQueueName(), $fileName, $msg ));
-            }
-        } // end while
-        $result = file_put_contents( $fileName, $msg, LOCK_EX );
-        if(( false === $result ) || ( $result != strlen( $msg ))) {
-            throw new RuntimeException( sprintf( $FMT3, $this->getQueueName(), $fileName, $msg ));
-        }
+        return [ $prio, $usec, $sec ];
     }
 
     /**
@@ -429,13 +474,13 @@ class MesQ implements MesQinterface
      */
     private function loadFiles( $priority = null ) : bool
     {
-        static $FMT1 = 'Queue \'%s\' : (glob) filesystem %s read error';
+        static $FMT1 = 'Queue \'%s\', (glob) filesystem %s read error';
         $this->reset();
-        $pattern  = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$PATTERN;
+        $pattern  = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$SEARCHPATTERN;
         // glob-loaded file names are sorted alphabetically
-        if( false === ( $this->files = glob( $this->getDirectory() . $pattern ))) {
+        if( false === ( $this->files = glob( $this->directory . $pattern ))) {
             throw new RuntimeException(
-                sprintf( $FMT1, $this->getQueueName(), $this->getDirectory() . $pattern )
+                sprintf( $FMT1, $this->getQueueName(), $this->directory . $pattern )
             );
         }
         $globCnt = count( $this->files );
@@ -496,6 +541,7 @@ class MesQ implements MesQinterface
      * @param null|int|array $priority
      * @return false|mixed
      * @throws RuntimeException on message disk (read) error
+     * @since 1.02 - 2021-03-16
      */
     public function getMessage( $priority = null )
     {
@@ -510,7 +556,7 @@ class MesQ implements MesQinterface
         } // end if
         $content   = $this->getFileContents( $this->files[$this->ix] );
         $this->ix += 1;
-        return unserialize( $content );
+        return $this->unserialize( $content );
     }
 
     /**
@@ -531,42 +577,73 @@ class MesQ implements MesQinterface
      */
     private function getFileContents( $fileName ) : string
     {
-        static $FMT3 = 'Queue \'%s\' : error on open of message (file) : %s';
-        static $FMT4 = 'Queue \'%s\' : error on lock of message (file) : %s';
-        static $FMT5 = 'Queue \'%s\' : error on reading filesize of message (file) : %s';
-        static $FMT6 = 'Queue \'%s\' : error, filesize zero of message (file) : %s';
-        static $FMT7 = 'Queue \'%s\' : error on read of message (file) : %s';
-        static $FMT8 = 'Queue \'%s\' : error on delete of message (file) : %s';
-        static $RT = 'rt';
-        if( false === ( $fp = @fopen( $fileName, $RT ))) {
-            throw new RuntimeException( sprintf( $FMT3, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( flock( $fp,LOCK_SH ))) {
+        static $FMT3 = 'Queue \'%s\', error on open of message (file) : %s';
+        static $FMT4 = 'Queue \'%s\', error on lock of message (file) : %s';
+        static $FMT5 = 'Queue \'%s\', error on reading filesize of message (file) : %s';
+        static $FMT6 = 'Queue \'%s\', error, filesize zero of message (file) : %s';
+        static $FMT7 = 'Queue \'%s\', error on read of message (file) : %s';
+        static $FMT8 = 'Queue \'%s\', error on delete of message (file) : %s';
+        static $RT   = 'rt';
+        $errFmt      = null;
+        while( true ) {
+            if( false === ( $fp = @fopen( $fileName, $RT ))) {
+                $errFmt = $FMT3;
+                break;
+            }
+            if( false === ( flock( $fp, LOCK_SH ))) {
+                fclose( $fp );
+                $errFmt = $FMT4;
+                break;
+            }
+            if( false === ( $filesize = @filesize( $fileName ))) {
+                fclose( $fp );
+                $errFmt = $FMT5;
+                break;
+            }
+            if( empty( $filesize )) {
+                fclose( $fp );
+                $errFmt = $FMT6;
+                break;
+            }
+            if( false === ( $content = @fread( $fp, $filesize ))) {
+                fclose( $fp );
+                $errFmt = $FMT7;
+                break;
+            }
             fclose( $fp );
+            if( false === @unlink( $fileName )) {
+                $errFmt = $FMT8;
+            }
+            break;
+        } // end while
+        if( ! empty( $errFmt )) {
             $this->reset();
-            throw new RuntimeException( sprintf( $FMT4, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( $filesize = @filesize( $fileName ))) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT5, $this->getQueueName(), $fileName ));
-        }
-        if( empty( $filesize )) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT6, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( $content = fread( $fp, $filesize ))) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT7, $this->getQueueName(), $fileName ));
-        }
-        fclose( $fp );
-        if( false === @unlink( $fileName )) {
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT8, $this->getQueueName(), $fileName ));
+            throw new RuntimeException( sprintf( $errFmt, $this->getQueueName(), $fileName ));
         }
         return $content;
+    }
+
+    /**
+     * @param string $content
+     * @return mixed
+     * @throws RuntimeException
+     * @since 1.02 - 2021-03-16
+     */
+    private function unserialize( string $content )
+    {
+        static $FMT1 = 'Queue \'%s\', error on unserialize of message (file) : %s, content %s';
+        static $FMT2 = 'Queue \'%s\', false result on unserialize of message (file) : %s, content %s';
+        try {
+            $unserialized = unserialize( $content );
+        }
+        catch( Exception $e ) {
+            $msg = sprintf( $FMT1, $this->queueName, $this->files[$this->ix], $content );
+            throw new RuntimeException( $msg, null, $e );
+        }
+        if(( false === $unserialized ) && ( $content !== serialize( false ))) {
+            throw new RuntimeException( sprintf( $FMT2, $this->queueName, $this->files[$this->ix], $content ));
+        }
+        return $unserialized;
     }
 
     /**
@@ -574,14 +651,14 @@ class MesQ implements MesQinterface
      */
 
     /**
-     * Return the queue size in number of messages (now), opt for priority, bool false on error
+     * Return the queue size in number of messages (now), opt for message priority, bool false on error
      *
      * @param null|int|array $priority
      * @return bool|int
      */
     public function getQueueSize( $priority = null )
     {
-        $pattern = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$PATTERN;
+        $pattern = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$SEARCHPATTERN;
         if( false === ( $messages = glob( $this->getDirectory() . $pattern ))) {
             return false;
         }
@@ -626,7 +703,7 @@ class MesQ implements MesQinterface
     {
         static $FMTP  = 'Priority expected int and 0 <= priority <= 9, got ';
         if( ! is_int( $priority ) || ( 0 > $priority ) || ( 9 < $priority )) {
-            throw new InvalidArgumentException( $FMTP . var_export( $priority ));
+            throw new InvalidArgumentException( $FMTP . print_r( $priority, true ));
         }
     }
 
@@ -635,10 +712,9 @@ class MesQ implements MesQinterface
      */
     private static function getPriorityPattern( $priority = null )
     {
-        static $PTRN = '[%d-%d]';
         switch( true ) {
             case ( null === $priority ) :
-                $pattern = self::$PATTERN;
+                $pattern = self::$SEARCHPATTERN;
                 break;
             case is_array( $priority ) :
                 $min = reset( $priority );
@@ -648,7 +724,7 @@ class MesQ implements MesQinterface
                 self::assertPriority( $max );
                 $max = 9 - $max;
                 if( 2 == count( $priority ) && ( $min > $max )) { // reverse..
-                    $pattern = sprintf( $PTRN, $max, $min ) . substr( self::$PATTERN, 1 );
+                    $pattern = sprintf( self::$PRIOPATTERN, $max, $min ) . substr( self::$SEARCHPATTERN, 1 );
                 }
                 else {
                     self::assertPriority( $priority ); // force exception
@@ -656,7 +732,7 @@ class MesQ implements MesQinterface
                 break;
             default :
                 self::assertPriority( $priority );
-                $pattern = (string) ( 9 - $priority ) . substr( self::$PATTERN, 1 );
+                $pattern = (string) ( 9 - $priority ) . substr( self::$SEARCHPATTERN, 1 );
                 break;
         } // end switch
         return $pattern;
@@ -713,7 +789,7 @@ class MesQ implements MesQinterface
      */
     public function setQueueType( string $queueType ) : MesQ
     {
-        static $FMT = 'Queue \'%s\' : invalid queuetype %s';
+        static $FMT = 'Queue \'%s\', invalid queuetype %s';
         if( ! in_array( $queueType, [ self::FIFO, self::LIFO, self::PRIO ] )) {
             throw new InvalidArgumentException( sprintf( $FMT, $this->getQueueName(), $queueType ));
         }
@@ -766,11 +842,11 @@ class MesQ implements MesQinterface
      */
     private static function assertDirectory( string $queueName, string $directory )
     {
-        static $ERRFMTEMPTY = 'Directory can\'t be empty';
-        static $ERRFMTISDIR = 'Queue \'%s\' : directory %s not exists and/or is not a directory';
-        static $ERRFMTWRTBL = 'Queue \'%s\' : directory %s is not writeable/readable';
+        static $ERRFMTEMPTY = 'Queue \'%s\', directory can\'t be empty';
+        static $ERRFMTISDIR = 'Queue \'%s\', directory %s not exists and/or is not a directory';
+        static $ERRFMTWRTBL = 'Queue \'%s\', directory %s is not writeable/readable';
         if( empty( $directory )) {
-            throw new InvalidArgumentException( $ERRFMTEMPTY );
+            throw new InvalidArgumentException( sprintf( $queueName, $ERRFMTEMPTY ));
         }
         if( ! @is_dir( $directory )) {
             throw new InvalidArgumentException( sprintf( $ERRFMTISDIR, $queueName, $directory ));

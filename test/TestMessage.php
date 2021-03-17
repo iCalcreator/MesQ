@@ -5,7 +5,7 @@
  * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * Link      https://kigkonsult.se
  * Package   MesQ
- * Version   1.0
+ * Version   1.05
  * License   Subject matter of licence is the software MesQ.
  *           The above copyright, link, package and version notices,
  *           this licence notice shall be included in all copies or
@@ -31,6 +31,8 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
 
+use stdClass;
+use function get_class;
 use function intval;
 use function microtime;
 use function number_format;
@@ -70,18 +72,20 @@ class TestMessage
     /**
      * TestMessage constructor.
      *
-     * @param int    $indexNo
-     * @param string $text
-     * @param int    $priority
+     * @param int      $indexNo
+     * @param string   $text
+     * @param null|int $priority
      */
     public function __construct( int $indexNo, string $text, $priority = null )
     {
+        $this->setLoadTime( microtime( true ));
         $this->setIndexNo( $indexNo );
         $this->setText( $text );
         if( null !== $priority ) {
             $this->setPriority( intval( $priority ));
         }
-        $this->setLoadTime( microtime( true ));
+        $this->prop = new stdClass();
+        $this->prop->prop2 = get_class( $this->prop );
     }
 
     /**
@@ -91,7 +95,7 @@ class TestMessage
      * @param string $text
      * @return TestMessage
      */
-    public static function factory( int $indexNo, string $text )
+    public static function factory( int $indexNo, string $text ) : TestMessage
     {
         return new self( $indexNo, $text );
     }
@@ -109,7 +113,9 @@ class TestMessage
             $SP1 .
             number_format( $this->getLoadTime(), 6, $DOT, $SP0 ) .
             $SP1 .
-            str_pad((string) $this->getPriority(), 2, $SP1, STR_PAD_LEFT );
+            str_pad((string) $this->getPriority(), 2, $SP1, STR_PAD_LEFT ) .
+            $SP1 .
+            $this->prop->prop2;
     }
 
     /**

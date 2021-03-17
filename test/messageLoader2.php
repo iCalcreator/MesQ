@@ -5,7 +5,7 @@
  * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * Link      https://kigkonsult.se
  * Package   MesQ
- * Version   1.0
+ * Version   1.05
  * License   LGPL
  *
  * This file is a part of MesQ.

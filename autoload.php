@@ -5,7 +5,7 @@
  * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * Link      https://kigkonsult.se
  * Package   MesQ
- * Version   1.0
+ * Version   1.05
  * License   Subject matter of licence is the software MesQ.
  *           The above copyright, link, package and version notices,
  *           this licence notice shall be included in all copies or

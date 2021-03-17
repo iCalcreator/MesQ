@@ -6,6 +6,8 @@
     "manager",
     "message",
     "disk",
+    "pull",
+    "push",
     "FIFO",
     "LIFO",
     "priority"

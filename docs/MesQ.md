@@ -1,4 +1,4 @@
-[comment]: # (This file is part of MesQ, PHP disk based message lite queue manager. Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved, licence LGPLv3)
+[comment]: # (This file is part of MesQ, PHP lite disk based message queue manager. Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved, licence LGPLv3)
 
 # MesQ methods
 
@@ -34,12 +34,14 @@ singleton( queueName [, directory ] )
 ```
 getConfig( [ key ] )
 ```
-* ```key``` _string_  please review MesQinterface.php for details
-* Return _array_ config key/value pairs or key _int_|_string_ value, please review MesQinterface.php for details
+* Review MesQinterface.php for details
+* ```key``` _string_
+* Return _array_ config key/value pairs or key _int_|_string_ value
 
 ```
 configToString()
 ```
+* Review MesQinterface.php for details
 * Return _string_, nicely rendered config key/value pairs
 
 #### Add messages to queue, logic methods
@@ -47,7 +49,7 @@ configToString()
 ```
 qPush( config, message [, priority ] )
 ```
-* One-liner, insert single message to queue
+* One-liner, insert single message to queue (incl. the factory method)
 * ```config``` _array_  config, please review MeeQinterface.php for details
 * ```message``` _mixed_  The Message
 * ```priority``` _int_, 0-9, 0-lowest, 9-highest, PRIOrity queue type only
@@ -119,6 +121,10 @@ Ex: https://www.php.net/manual/en/function.flock.php#117162
 You should always set the 'RETURNCHUNKSIZE' config key
 otherwise the 'Fetch messages from queue'-PHP script may
 continue forever i.e. until PHP exec script timeout.
+
+Using more complex class instances (with ex Closure) as  message 
+may throw a serialize Exception.
+
 
 ---
 Go to [README]
