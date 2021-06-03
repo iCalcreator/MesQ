@@ -7,7 +7,8 @@
 MesQ is a PHP lite disk based message queue manager
 
 * Assemple and queue (un-)frequently (incoming) messages
-* process once or scheduled
+* process once (scheduled)
+
 
 MesQ  supports FIFO, LIFO and PRIOrity message queues
 
@@ -23,7 +24,7 @@ Requires (below)
 
 For the MesQ config keys, please review src/MesQinterface.php.
 
-#### Add single message to queue
+#### Add messages to queue
 
 ``` php
 <?php
@@ -38,28 +39,8 @@ $config = [
     MesQ::QUEUETYPE => MesQ::FIFO, // default
 ];
 
-MesQ::qPush( $config, <message> );
-...
-```
-
-#### Add messages to queue
-
-``` php
-<?php
-namespace Kigkonsult\MesQ;
-
-require 'vendor/autoload.php';
-
-...
-$mesQ = MesQ::factory( 
-    [
-        MesQ::QUEUENAME => <queueName>,
-        MesQ::DIRECTORY => <directory>
-    ];
-);
-foreach( <messages> as $message ) {
-    $mesQ->push( $message );
-} // end foreach
+MesQ::factory( $config )
+    ->push( <message> );
 ...
 ```
 
@@ -90,7 +71,7 @@ if( $mesQ->messageExists() {
 ...
 ```
 
-For more detailed usage, read [MesQ] doc, ReleaseNotes and for test, review test/test.sh. 
+For more detailed usage, read [MesQ] docs. 
 
 ## Installation
 

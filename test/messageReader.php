@@ -1,14 +1,32 @@
 <?php
 /**
- * MesQ, PHP disk based message lite queue manager
- *
- * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
- * Link      https://kigkonsult.se
- * Package   MesQ
- * Version   1.05
- * License   LGPL
+ * MesQ, lite PHP disk based message queue manager
  *
  * This file is a part of MesQ.
+ *
+ * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+ * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+ * @link      https://kigkonsult.se
+ * @version   1.2
+ * @license   Subject matter of licence is the software MesQ.
+ *            The above copyright, link, package and version notices,
+ *            this licence notice shall be included in all copies or
+ *            substantial portions of the MesQ.
+ *
+ *            MesQ is free software: you can redistribute it and/or modify
+ *            it under the terms of the GNU Lesser General Public License as
+ *            published by the Free Software Foundation, either version 3 of
+ *            the License, or (at your option) any later version.
+ *
+ *            MesQ is distributed in the hope that it will be useful,
+ *            but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *            GNU Lesser General Public License for more details.
+ *
+ *            You should have received a copy of the
+ *            GNU Lesser General Public License
+ *            along with MesQ.
+ *            If not, see <https://www.gnu.org/licenses/>.
  *
  * This php script read test messages
  *
@@ -21,8 +39,6 @@
  * 1 : directory
  * 2 : read chunk size
  * 3 : return chunk size
- * 4 : opt prio, single or min, force queueType to PRIO
- * 5 : opt prio max, only if min is set
  */
 declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
@@ -33,18 +49,16 @@ use function microtime;
 use function realpath;
 use function sprintf;
 
-include realpath( '../autoload.php' );
+include realpath( '../vendor/autoload.php' );
 include realpath( './test.inc.php' );
 
 static $FMT1 = 'pid %d %s : message %s%s';
 static $FMT2 = 'pid %s : %sread %d messages in %s sec%s';
 static $WAIT = 'wait for any prio message';
-static $FMT4 = 'count messages : ';
-static $FMT5 = 'count bytes    : ';
 static $SP0  = '';
 static $TTL  = 'total ';
 
-// load args and prepare config
+// load args
 list( $queueName, $directory ) = getArgv1and2( $argv );
 $config = [ MesQ::QUEUENAME => $queueName, MesQ::DIRECTORY => $directory ];
 if( isArgSet( $argv, 3 )) {
@@ -65,7 +79,7 @@ if( isArgSet( $argv, 5 )) {
     }
     $mesq->setQueueType( MesQ::PRIO );
 }
-$mesq = MesQ::singleton( $config ); // test, should be factory method
+$mesq = MesQ::singleton( $config );
 echo $mesq->configToString() . PHP_EOL;
 // check fot opt priority messages
 $cnt  = $cnt2 = 0;
@@ -76,22 +90,21 @@ if( $mesq->isQueueTypePrio()) {
             sleep( 1 );
         }
         echo $WAIT . PHP_EOL; // test
-    } // end while
-} // end if
-echo $FMT4 . var_export( $mesq->size(), true ) . PHP_EOL; // test ###
-echo $FMT5 . $mesq->GetDirectorySize() . PHP_EOL;
+    }
+}
+echo 'count messages : ' . var_export( $mesq->size(), true ) . PHP_EOL; // test ###
+// echo 'count messages : ' . $mesq->size() . PHP_EOL;
+echo 'count bytes    : ' . $mesq->getDirectorySize() . PHP_EOL;
 // retrieve messages
 while( $message = $mesq->getMessage( $prio )) {
     $cnt  += 1;
-    echo sprintf( $FMT1, $pid, getTime( $time ), $message->ToString(), PHP_EOL );
+    echo sprintf( $FMT1, $pid, getTime( $time ), $message->toString(), PHP_EOL );
     $cnt2 += 1;
     if( 0 == ( $cnt % 1000 )) {
         echo sprintf( $FMT2, $pid, $SP0, $cnt2, getTime( $time2 ), PHP_EOL );
         $time2 = microtime( true );
         $cnt2  = 0;
-        echo $FMT4 . var_export( $mesq->size(), true ) . PHP_EOL; // test ###
-        echo $FMT5 . $mesq->GetDirectorySize() . PHP_EOL;
-    } // end if
+    }
     /*
     // should emulate some php logic here, wait 10000000 (0.01) sec,
     if( true !== time_nanosleep( 0, 10000000 )) {

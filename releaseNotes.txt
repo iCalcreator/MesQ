@@ -1,5 +1,8 @@
+
 1.01 Error management serialize
 1.02 Error management unserialize
 1.03 repl. var_export by print_r
-1.04 config upd and error mgnt
-1.05 file name patterns
+
+
+1.2 PHP 7 (PHPStan checks)
+

@@ -1,14 +1,32 @@
 <?php
 /**
- * MesQ, PHP disk based message lite queue manager
- *
- * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
- * Link      https://kigkonsult.se
- * Package   MesQ
- * Version   1.05
- * License   LGPL
+ * MesQ, lite PHP disk based message queue manager
  *
  * This file is a part of MesQ.
+ *
+ * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+ * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+ * @link      https://kigkonsult.se
+ * @version   1.2
+ * @license   Subject matter of licence is the software MesQ.
+ *            The above copyright, link, package and version notices,
+ *            this licence notice shall be included in all copies or
+ *            substantial portions of the MesQ.
+ *
+ *            MesQ is free software: you can redistribute it and/or modify
+ *            it under the terms of the GNU Lesser General Public License as
+ *            published by the Free Software Foundation, either version 3 of
+ *            the License, or (at your option) any later version.
+ *
+ *            MesQ is distributed in the hope that it will be useful,
+ *            but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *            GNU Lesser General Public License for more details.
+ *
+ *            You should have received a copy of the
+ *            GNU Lesser General Public License
+ *            along with MesQ.
+ *            If not, see <https://www.gnu.org/licenses/>.
  *
  * This php script generate test messages
  * messageLoader.php
@@ -20,11 +38,10 @@
  *
  * arguments :
  * 0 : '/path/to/MesQ/test/messageLoader.php'
- * 1 : queueName
- * 2 : directory
- * 3 : startIndex
- * 4 : number of messages to generate
- * 5 : queue type, FIFO default
+ * 1 : directory
+ * 2 : startIndex
+ * 3 : number of messages to generate
+ * 4 : queue type, FIFO default
  */
 declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
@@ -37,7 +54,7 @@ use function rand;
 use function realpath;
 use function sprintf;
 
-include realpath( '../autoload.php' );
+include realpath( '../vendor/autoload.php' );
 include realpath( './test.inc.php' );
 
 static $FMT1 = 'pid %d %s : message %s%s';
@@ -67,6 +84,6 @@ for( $x1 = 1; $x1 <= $count; $x1++ ) {
         $testMsg->setPriority( $prio );
     }
     $mesq->push( $testMsg, $prio );
-    echo sprintf( $FMT1, $pid, getTime( $time ), $testMsg->ToString(), PHP_EOL );
-} // end for
+    echo sprintf( $FMT1, $pid, getTime( $time ), $testMsg->toString(), PHP_EOL );
+}
 echo sprintf( $FMT2, $pid, $count, getTime( $time ), PHP_EOL );

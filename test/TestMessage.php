@@ -2,37 +2,38 @@
 /**
  * MesQ, lite PHP disk based message queue manager
  *
- * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
- * Link      https://kigkonsult.se
- * Package   MesQ
- * Version   1.05
- * License   Subject matter of licence is the software MesQ.
- *           The above copyright, link, package and version notices,
- *           this licence notice shall be included in all copies or
- *           substantial portions of the MesQ.
+ * This file is a part of MesQ.
  *
- *           MesQ is free software: you can redistribute it and/or modify
- *           it under the terms of the GNU Lesser General Public License as
- *           published by the Free Software Foundation, either version 3 of
- *           the License, or (at your option) any later version.
+ * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+ * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+ * @link      https://kigkonsult.se
+ * @version   1.2
+ * @license   Subject matter of licence is the software MesQ.
+ *            The above copyright, link, package and version notices,
+ *            this licence notice shall be included in all copies or
+ *            substantial portions of the MesQ.
  *
- *           MesQ is distributed in the hope that it will be useful,
- *           but WITHOUT ANY WARRANTY; without even the implied warranty of
- *           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *           GNU Lesser General Public License for more details.
+ *            MesQ is free software: you can redistribute it and/or modify
+ *            it under the terms of the GNU Lesser General Public License as
+ *            published by the Free Software Foundation, either version 3 of
+ *            the License, or (at your option) any later version.
  *
- *           You should have received a copy of the
- *           GNU Lesser General Public License
- *           along with MesQ.
- *           If not, see <https://www.gnu.org/licenses/>.
+ *            MesQ is distributed in the hope that it will be useful,
+ *            but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *            GNU Lesser General Public License for more details.
  *
- * This file is a part of Gectrl.
+ *            You should have received a copy of the
+ *            GNU Lesser General Public License
+ *            along with MesQ.
+ *            If not, see <https://www.gnu.org/licenses/>.
  */
 declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
 
+use Closure;
 use stdClass;
-use function get_class;
+
 use function intval;
 use function microtime;
 use function number_format;
@@ -70,11 +71,40 @@ class TestMessage
     private $loadTime = 0;
 
     /**
+     * Property with closure
+     *
+     * @var Closure
+     */
+    private $closureProp1 = null;
+
+    /**
+     * @return null|Closure
+     */
+    public function getClosureProp1()
+    {
+        return $this->closureProp1;
+    }
+
+    /**
+     * Property with closure in array
+     *
+     * @var array
+     */
+    private $closureProp2 = [];
+
+    /**
+     * Property, object
+     *
+     * @var TestMessage2
+     */
+    private $closureProp3 = null;
+
+    /**
      * TestMessage constructor.
      *
-     * @param int      $indexNo
-     * @param string   $text
-     * @param null|int $priority
+     * @param int    $indexNo
+     * @param string $text
+     * @param int    $priority
      */
     public function __construct( int $indexNo, string $text, $priority = null )
     {
@@ -84,8 +114,17 @@ class TestMessage
         if( null !== $priority ) {
             $this->setPriority( intval( $priority ));
         }
-        $this->prop = new stdClass();
-        $this->prop->prop2 = get_class( $this->prop );
+        /*
+        $this->closureProp1 = function() {
+            return ' closureProp1';
+        };
+        $this->closureProp2 = [
+            function () {
+                return ' closureProp2';
+            }
+        ];
+        $this->closureProp3 = new TestMessage2();
+        */
     }
 
     /**
@@ -113,9 +152,17 @@ class TestMessage
             $SP1 .
             number_format( $this->getLoadTime(), 6, $DOT, $SP0 ) .
             $SP1 .
-            str_pad((string) $this->getPriority(), 2, $SP1, STR_PAD_LEFT ) .
+            str_pad((string) $this->getPriority(), 3, $SP1, STR_PAD_LEFT )
+            ;
+            /*
+            .
             $SP1 .
-            $this->prop->prop2;
+            $this->getClosureProp1()() .
+            $SP1 .
+            $this->closureProp2[0]() .
+            $SP1 .
+            $this->closureProp3->toString();
+            */
     }
 
     /**
@@ -186,5 +233,38 @@ class TestMessage
     public function setLoadTime( float $loadTime ) : TestMessage {
         $this->loadTime = $loadTime;
         return $this;
+    }
+}
+class TestMessage2
+{
+    /**
+     * TestMessage2 constructor.
+     */
+    public function __construct()
+    {
+        $this->closureProp21 = function() {
+            return ' closureProp21';
+        };
+        $this->getClosureProp21 = function()
+        {
+            return $this->closureProp21;
+        };
+        $this->closureProp22 = [
+            function () {
+                return ' closureProp22';
+            }
+        ];
+        $this->prop23 = new stdClass();
+    }
+
+    /**
+     * @return string
+     */
+    public function toString() : string
+    {
+        $str  = $this->getClosureProp21();
+        $str .= $this->closureProp22[0]();
+        $str .= ' ' . get_class( $this->prop23 );
+        return $str;
     }
 }

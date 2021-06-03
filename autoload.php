@@ -1,32 +1,32 @@
 <?php
 /**
- * MesQ, PHP lite disk based message queue manager
+ * MesQ, lite PHP disk based message queue manager
  *
- * Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
- * Link      https://kigkonsult.se
- * Package   MesQ
- * Version   1.05
- * License   Subject matter of licence is the software MesQ.
- *           The above copyright, link, package and version notices,
- *           this licence notice shall be included in all copies or
- *           substantial portions of the MesQ.
+ * This file is a part of MesQ.
  *
- *           MesQ is free software: you can redistribute it and/or modify
- *           it under the terms of the GNU Lesser General Public License as
- *           published by the Free Software Foundation, either version 3 of
- *           the License, or (at your option) any later version.
+ * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+ * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+ * @link      https://kigkonsult.se
+ * @version   1.2
+ * @license   Subject matter of licence is the software MesQ.
+ *            The above copyright, link, package and version notices,
+ *            this licence notice shall be included in all copies or
+ *            substantial portions of the MesQ.
  *
- *           MesQ is distributed in the hope that it will be useful,
- *           but WITHOUT ANY WARRANTY; without even the implied warranty of
- *           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *           GNU Lesser General Public License for more details.
+ *            MesQ is free software: you can redistribute it and/or modify
+ *            it under the terms of the GNU Lesser General Public License as
+ *            published by the Free Software Foundation, either version 3 of
+ *            the License, or (at your option) any later version.
  *
- *           You should have received a copy of the
- *           GNU Lesser General Public License
- *           along with MesQ.
- *           If not, see <https://www.gnu.org/licenses/>.
+ *            MesQ is distributed in the hope that it will be useful,
+ *            but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *            GNU Lesser General Public License for more details.
  *
- * This file is a part of Gectrl.
+ *            You should have received a copy of the
+ *            GNU Lesser General Public License
+ *            along with MesQ.
+ *            If not, see <https://www.gnu.org/licenses/>.
  */
 spl_autoload_register(
     function( string $class ) {

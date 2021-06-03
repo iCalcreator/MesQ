@@ -1,24 +1,37 @@
 #!/bin/bash
 #
-# MesQ, PHP lite disk based message queue manager
-#
-# Copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
-# Link      https://kigkonsult.se
-# Package   MesQ
-# Version   1.05
-# License   LGPL
+# MesQ, lite PHP disk based message queue manager
 #
 # This file is a part of MesQ.
 #
-# MesQ FIFO test, 9000 (each 4kB+ object) messages
-# The test is a 'worst case scenario',
-#   creating messages asap in 9 concurrent processes
-#   starting return messages before all are inserted in queue
+# author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
+# copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+# link      https://kigkonsult.se
+# version   1.2
+# license   Subject matter of licence is the software MesQ.
+#           The above copyright, link, package and version notices,
+#           this licence notice shall be included in all copies or
+#           substantial portions of the MesQ.
+#
+#           MesQ is free software: you can redistribute it and/or modify
+#           it under the terms of the GNU Lesser General Public License as
+#           published by the Free Software Foundation, either version 3 of
+#           the License, or (at your option) any later version.
+#
+#           MesQ is distributed in the hope that it will be useful,
+#           but WITHOUT ANY WARRANTY; without even the implied warranty of
+#           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#           GNU Lesser General Public License for more details.
+#
+#           You should have received a copy of the
+#           GNU Lesser General Public License
+#           along with MesQ.
+#           If not, see <https://www.gnu.org/licenses/>.
+#
+# MesQ FIFO test, 9000 (each 4kB+ object) messages, usage :
+#
 # testDir (below) is the (temp) message storage, empty after successful exec
-#
-# usage :
-#
-# Prepare and save this script : queueName, directory, queueType etc
+# Prepare this script : queueName, directory, queueType etc
 # Open a command window
 # cd /path/to/MesQ/test
 # ./test.sh
@@ -27,9 +40,10 @@
 #
 
 queueName='incoming'
-testDir='/path/to/queueDirectory'
+# testDir='/path/to/queueDirectory'
+testDir='/home/kig/project/testDir'
 # FIFO, LIFO, PRIO (with random prio)
-queueType='FIFO'
+queueType='PRIO'
 
 if [ ! -d  $testDir ];
 then
@@ -44,7 +58,7 @@ then
     echo -n '' > log.err
 fi
 
-# start up 8 loaders using the push method, asap
+# start up 9 loaders, asap
 php -f messageLoader.php $queueName $testDir 1000 1000 $queueType >>load.log 2>>log.err &
 php -f messageLoader.php $queueName $testDir 2000 1000 $queueType >>load.log 2>>log.err &
 php -f messageLoader.php $queueName $testDir 3000 1000 $queueType >>load.log 2>>log.err &
@@ -53,22 +67,18 @@ php -f messageLoader.php $queueName $testDir 5000 1000 $queueType >>load.log 2>>
 php -f messageLoader.php $queueName $testDir 6000 1000 $queueType >>load.log 2>>log.err &
 php -f messageLoader.php $queueName $testDir 7000 1000 $queueType >>load.log 2>>log.err &
 php -f messageLoader.php $queueName $testDir 8000 1000 $queueType >>load.log 2>>log.err &
-# start up the 9th loader using the qPush method
-php -f messageLoader2.php $queueName $testDir 9000 1000 $queueType >>load.log 2>>log.err &
+php -f messageLoader.php $queueName $testDir 9000 1000 $queueType >>load.log 2>>log.err &
 
-# read PRIO messages, in chunks of max 10, return max 10000, prio 0-9
+## you may have to fire of this later due to to short latency
+
+# read all messages
+php -f messageReader.php $queueName $testDir >>read.log 2>>log.err
+
+# read PRIO messages, in chunks of max 100, return max 10000, prio 0-9
 # php -f messageReader.php $queueName $testDir 10 10000 0 9 >>read.log 2>>log.err
 
-# read PRIO messages, in chunks of max 1000, return max 10000, prio 7-9
-# php -f messageReader.php $queueName $testDir 1000 10000 7 9 >>read.log 2>>log.err
+# read PRIO messages, in chunks of max 100, return max 10000, prio 7-9
+# php -f messageReader.php $queueName $testDir 10 10000 7 9 >>read.log 2>>log.err
 
 # read 100 messages and then quit
 # php -f messageReader.php $queueName $testDir 0 100 >>read.log 2>>log.err
-
-# read messages in chunks of max 10, return all (ex for LIFO/PRIO)
-php -f messageReader.php $queueName $testDir 10 >>read.log 2>>log.err
-
-## you may have to fire of this later due to to short latency
-## If fired of in the command window, expand $queueName $testDir first
-# read ALL messages regardless of queueType
-# php -f messageReader.php $queueName $testDir >>read.log 2>>log.err
