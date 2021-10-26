@@ -7,7 +7,6 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software MesQ.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or
@@ -38,7 +37,7 @@ use function is_readable;
 use function is_writable;
 use function microtime;
 use function number_format;
-use function rand;
+use function random_int;
 
 /**
  * @param int $length
@@ -51,7 +50,7 @@ function generateRandomString( int $length ) : string
     static $SP0        = '';
     $randomString      = $SP0;
     for( $i = 0; $i < $length; $i++ ) {
-        $randomString .= $characters[rand( 0, $charLngth)];
+        $randomString .= $characters[random_int( 0, $charLngth)];
     }
     return $randomString;
 }
@@ -97,5 +96,5 @@ function getTime( float $time ) : string
 function isArgSet( array $arg, int $ix ) : bool
 {
     static $SP0 = '';
-    return ( isset( $arg[$ix] ) && ( $SP0 != $arg[$ix] ));
+    return ( isset( $arg[$ix] ) && ( $SP0 !== $arg[$ix] ));
 }

@@ -7,7 +7,6 @@
 # author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
 # copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
 # link      https://kigkonsult.se
-# version   1.2
 # license   Subject matter of licence is the software MesQ.
 #           The above copyright, link, package and version notices,
 #           this licence notice shall be included in all copies or
@@ -41,9 +40,9 @@
 
 queueName='incoming'
 # testDir='/path/to/queueDirectory'
-testDir='/home/kig/project/testDir'
+testDir='/home/kig/projects/MesQ/test/testDir'
 # FIFO, LIFO, PRIO (with random prio)
-queueType='PRIO'
+queueType='FIFO'
 
 if [ ! -d  $testDir ];
 then
@@ -72,10 +71,10 @@ php -f messageLoader.php $queueName $testDir 9000 1000 $queueType >>load.log 2>>
 ## you may have to fire of this later due to to short latency
 
 # read all messages
-php -f messageReader.php $queueName $testDir >>read.log 2>>log.err
+# php -f messageReader.php $queueName $testDir >>read.log 2>>log.err
 
 # read PRIO messages, in chunks of max 100, return max 10000, prio 0-9
-# php -f messageReader.php $queueName $testDir 10 10000 0 9 >>read.log 2>>log.err
+php -f messageReader.php $queueName $testDir 10 10000 0 9 >>read.log 2>>log.err
 
 # read PRIO messages, in chunks of max 100, return max 10000, prio 7-9
 # php -f messageReader.php $queueName $testDir 10 10000 7 9 >>read.log 2>>log.err

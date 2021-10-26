@@ -7,7 +7,6 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software MesQ.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or
@@ -43,13 +42,13 @@ Interface MesQinterface
      * Mandatory
      * Make sure there is sufficient capacity available in directory !!
      */
-    const QUEUENAME = 'queueName';
-    const DIRECTORY = 'directory';
+    public const QUEUENAME = 'queueName';
+    public const DIRECTORY = 'directory';
 
     /**
      * Queue type key config constant
      */
-    const QUEUETYPE = 'queueType';
+    public const QUEUETYPE = 'queueType';
 
     /**
      * Queue type value config constants
@@ -58,9 +57,9 @@ Interface MesQinterface
      * LIFO : Last In First Out
      * PRIO : Highest Priority First Out, prio value int 0-9, 0-lowest, 9-highest
      */
-    const FIFO = 'FIFO';
-    const LIFO = 'LIFO';
-    const PRIO = 'PRIO';
+    public const FIFO = 'FIFO';
+    public const LIFO = 'LIFO';
+    public const PRIO = 'PRIO';
 
     /**
      * The config key for the iterating max amount of read messages (file names) chunk size
@@ -68,7 +67,7 @@ Interface MesQinterface
      * For LIFO/PRIO queues and higher frequence of incoming messages,
      * use a smaller value (10?)
      */
-    const READCHUNKSIZE = 'readChunkSize';
+    public const READCHUNKSIZE = 'readChunkSize';
 
     /**
      * The config key for the return max number of messages
@@ -76,14 +75,14 @@ Interface MesQinterface
      * Should (must) be set in config or using the method setReturnChunkSize()
      * OR the PHP process script may continue eternally (or until PHP exec timeout)
      */
-    const RETURNCHUNKSIZE = 'returnChunkSize';
+    public const RETURNCHUNKSIZE = 'returnChunkSize';
 
     /**
      * In method getConfig() only
      *   process pid number
      *   time, float (STARTTIME) and 'YmdHis' string (DATE)
      */
-    const PID       = 'pid';
-    const STARTTIME = 'startTime';
-    const DATE      = 'date';
+    public const PID       = 'pid';
+    public const STARTTIME = 'startTime';
+    public const DATE      = 'date';
 }

@@ -7,7 +7,6 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software MesQ.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or
@@ -44,13 +43,11 @@ declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
 
 use function getmypid;
-use function intval;
 use function microtime;
-use function realpath;
 use function sprintf;
 
-include realpath( '../vendor/autoload.php' );
-include realpath( './test.inc.php' );
+include '../vendor/autoload.php';
+include './test.inc.php';
 
 static $FMT1 = 'pid %d %s : message %s%s';
 static $FMT2 = 'pid %s : %sread %d messages in %s sec%s';
@@ -59,13 +56,13 @@ static $SP0  = '';
 static $TTL  = 'total ';
 
 // load args
-list( $queueName, $directory ) = getArgv1and2( $argv );
+[ $queueName, $directory ] = getArgv1and2( $argv );
 $config = [ MesQ::QUEUENAME => $queueName, MesQ::DIRECTORY => $directory ];
 if( isArgSet( $argv, 3 )) {
-    $config[MesQ::READCHUNKSIZE] = intval( $argv[3] );
+    $config[MesQ::READCHUNKSIZE] = (int)$argv[3];
 }
 if( isArgSet( $argv, 4 )) {
-    $config[MesQ::RETURNCHUNKSIZE] = intval( $argv[4] );
+    $config[MesQ::RETURNCHUNKSIZE] = (int)$argv[4];
 }
 // set up
 $time = microtime( true );
@@ -73,13 +70,12 @@ $pid  = getmypid();
 $prio = null;
 $mesq = MesQ::singleton( $config );
 if( isArgSet( $argv, 5 )) {
-    $prio = intval( $argv[5] );
+    $prio = (int)$argv[5];
     if( isArgSet( $argv, 6 )) {
-        $prio = [ $prio, intval( $argv[6] ) ];
+        $prio = [ $prio, (int)$argv[6] ];
     }
     $mesq->setQueueType( MesQ::PRIO );
 }
-$mesq = MesQ::singleton( $config );
 echo $mesq->configToString() . PHP_EOL;
 // check fot opt priority messages
 $cnt  = $cnt2 = 0;
@@ -94,22 +90,29 @@ if( $mesq->isQueueTypePrio()) {
 }
 echo 'count messages : ' . var_export( $mesq->size(), true ) . PHP_EOL; // test ###
 // echo 'count messages : ' . $mesq->size() . PHP_EOL;
-echo 'count bytes    : ' . $mesq->getDirectorySize() . PHP_EOL;
+echo 'count dir size : ' . $mesq->getDirectorySize() . PHP_EOL;
+// wait some time
+wait( 1 );
 // retrieve messages
 while( $message = $mesq->getMessage( $prio )) {
-    $cnt  += 1;
+    ++$cnt;
     echo sprintf( $FMT1, $pid, getTime( $time ), $message->toString(), PHP_EOL );
-    $cnt2 += 1;
-    if( 0 == ( $cnt % 1000 )) {
+    ++$cnt2;
+    if( 0 === ( $cnt % 1000 )) {
         echo sprintf( $FMT2, $pid, $SP0, $cnt2, getTime( $time2 ), PHP_EOL );
         $time2 = microtime( true );
         $cnt2  = 0;
     }
-    /*
+    /**/
     // should emulate some php logic here, wait 10000000 (0.01) sec,
-    if( true !== time_nanosleep( 0, 10000000 )) {
-        sleep( 1 );
-    }
-    */
+    // wait();
+    /**/
 } // end while
 echo sprintf( $FMT2, $pid, $TTL, $cnt, getTime( $time ), PHP_EOL );
+
+function wait( ? int $sec = 0 ) : void
+{
+    if( true !== time_nanosleep( $sec, 10000000 )) {
+        sleep( $sec );
+    }
+}

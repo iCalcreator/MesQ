@@ -3,6 +3,7 @@
 1.02 Error management unserialize
 1.03 repl. var_export by print_r
 
-
 1.2 PHP 7 (PHPStan checks)
+
+1.4 PHP 7.4
 

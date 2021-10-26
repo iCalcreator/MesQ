@@ -7,7 +7,6 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software MesQ.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or
@@ -34,7 +33,6 @@ namespace Kigkonsult\MesQ;
 use Closure;
 use stdClass;
 
-use function intval;
 use function microtime;
 use function number_format;
 use function str_pad;
@@ -51,19 +49,19 @@ class TestMessage
     /**
      * @var int
      */
-    private $indexNo = 0;
+    private int $indexNo = 0;
 
     /**
      * @var string
      */
-    private $text = null;
+    private ?string $text;
 
     /**
      * Message priority 0-99
      *
      * @var int
      */
-    private $priority = 0;
+    private int $priority = 0;
 
     /**
      * @var float
@@ -75,12 +73,12 @@ class TestMessage
      *
      * @var Closure
      */
-    private $closureProp1 = null;
+    private ?Closure $closureProp1;
 
     /**
      * @return null|Closure
      */
-    public function getClosureProp1()
+    public function getClosureProp1() : ?callable
     {
         return $this->closureProp1;
     }
@@ -90,29 +88,29 @@ class TestMessage
      *
      * @var array
      */
-    private $closureProp2 = [];
+    private array $closureProp2 = [];
 
     /**
      * Property, object
      *
      * @var TestMessage2
      */
-    private $closureProp3 = null;
+    private ?TestMessage2 $closureProp3;
 
     /**
      * TestMessage constructor.
      *
-     * @param int    $indexNo
-     * @param string $text
-     * @param int    $priority
+     * @param int       $indexNo
+     * @param string    $text
+     * @param null|int  $priority
      */
-    public function __construct( int $indexNo, string $text, $priority = null )
+    public function __construct( int $indexNo, string $text, ? int $priority = null )
     {
         $this->setLoadTime( microtime( true ));
         $this->setIndexNo( $indexNo );
         $this->setText( $text );
         if( null !== $priority ) {
-            $this->setPriority( intval( $priority ));
+            $this->setPriority( (int)$priority );
         }
         /*
         $this->closureProp1 = function() {
@@ -242,7 +240,7 @@ class TestMessage2
      */
     public function __construct()
     {
-        $this->closureProp21 = function() {
+        $this->closureProp21 = static function() {
             return ' closureProp21';
         };
         $this->getClosureProp21 = function()

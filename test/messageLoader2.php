@@ -7,7 +7,6 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult <ical@kigkonsult.se>
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software MesQ.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or
@@ -49,28 +48,26 @@ namespace Kigkonsult\MesQ;
 
 use function in_array;
 use function getmypid;
-use function intval;
 use function microtime;
-use function rand;
-use function realpath;
+use function random_int;
 use function sprintf;
 
-include realpath( '../autoload.php' );
-include realpath( './test.inc.php' );
+include '../autoload.php';
+include './test.inc.php';
 
 static $FMT1 = 'pid %d %s : message %s%s';
 static $FMT2 = 'pid %d : created %d messages in %s sec%s';
 
 // load args and prepare config
-list( $queueName, $directory ) = getArgv1and2( $argv );
+[ $queueName, $directory ] = getArgv1and2( $argv );
 $config    = [ MesQ::QUEUENAME => $queueName, MesQ::DIRECTORY => $directory ];
 $queueType = ( isArgSet( $argv, 5 ) &&
-    in_array( $argv[5], [ MesQ::FIFO, MesQ::LIFO, MesQ::PRIO ] ))
+    in_array( $argv[5], [ MesQ::FIFO, MesQ::LIFO, MesQ::PRIO ], true ) )
     ? $argv[5]
     : MesQ::FIFO;
 $config[MesQ::QUEUETYPE] = $queueType;
-$start   = isArgSet( $argv, 3 ) ? intval( $argv[2] ) : 3;
-$count   = isArgSet( $argv, 4 ) ? intval( $argv[4] ) : 1000;
+$start   = isArgSet( $argv, 3 ) ? (int)$argv[2] : 3;
+$count   = isArgSet( $argv, 4 ) ? (int)$argv[4] : 1000;
 // set up
 $time    = microtime( true );
 $pid     = getmypid();
@@ -79,8 +76,8 @@ $prio    = null;
 // load !!
 for( $x1 = 1; $x1 <= $count; $x1++ ) {
     $testMsg = TestMessage::factory( $start++, $payload );
-    if( MesQ::PRIO == $queueType ) {
-        $prio = rand( 0, 9 );
+    if( MesQ::PRIO === $queueType ) {
+        $prio = random_int( 0, 9 );
         $testMsg->setPriority( $prio );
     }
     MesQ::qPush( $config, $testMsg, $prio );
