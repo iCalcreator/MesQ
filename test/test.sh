@@ -70,14 +70,14 @@ php -f messageLoader.php $queueName $testDir 9000 1000 $queueType >>load.log 2>>
 
 ## you may have to fire of this later due to to short latency
 
-# read all messages
+## read all messages
 # php -f messageReader.php $queueName $testDir >>read.log 2>>log.err
 
-# read PRIO messages, in chunks of max 100, return max 10000, prio 0-9
+## read PRIO messages, in chunks of max 10, return max 10000, prio 0-9
 php -f messageReader.php $queueName $testDir 10 10000 0 9 >>read.log 2>>log.err
 
-# read PRIO messages, in chunks of max 100, return max 10000, prio 7-9
+## read PRIO messages, in chunks of max 10, return max 10000, prio 7-9
 # php -f messageReader.php $queueName $testDir 10 10000 7 9 >>read.log 2>>log.err
 
-# read 100 messages and then quit
+## read 100 messages and then quit
 # php -f messageReader.php $queueName $testDir 0 100 >>read.log 2>>log.err

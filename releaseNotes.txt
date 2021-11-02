@@ -3,7 +3,13 @@
 1.02 Error management unserialize
 1.03 repl. var_export by print_r
 
+
 1.2 PHP 7 (PHPStan checks)
 
 1.4 PHP 7.4
+
+1.6 PHP 8
+    asserts moved to class Asserts
+    enqueued (serialized) Message incapsulated in class Message
+    Single file store/read operations managed by class FileHandler
 

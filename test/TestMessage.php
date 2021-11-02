@@ -52,7 +52,7 @@ class TestMessage
     private int $indexNo = 0;
 
     /**
-     * @var string
+     * @var string|null
      */
     private ?string $text;
 
@@ -64,14 +64,14 @@ class TestMessage
     private int $priority = 0;
 
     /**
-     * @var float
+     * @var int|float
      */
-    private $loadTime = 0;
+    private int | float $loadTime = 0;
 
     /**
      * Property with closure
      *
-     * @var Closure
+     * @var Closure|null
      */
     private ?Closure $closureProp1;
 
@@ -93,7 +93,7 @@ class TestMessage
     /**
      * Property, object
      *
-     * @var TestMessage2
+     * @var TestMessage2|null
      */
     private ?TestMessage2 $closureProp3;
 
@@ -110,7 +110,7 @@ class TestMessage
         $this->setIndexNo( $indexNo );
         $this->setText( $text );
         if( null !== $priority ) {
-            $this->setPriority( (int)$priority );
+            $this->setPriority( $priority );
         }
         /*
         $this->closureProp1 = function() {

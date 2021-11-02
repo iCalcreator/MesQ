@@ -39,13 +39,8 @@
       ]
     }
   },
-  "config": {
-    "platform": {
-      "php": "7.4"
-    }
-  },
   "require": {
-    "php": ">=7.4"
+    "php": ">=8.0"
   },
   "require-dev": {
     "phpstan/phpstan": ">=0.9.3"

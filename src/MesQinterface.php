@@ -79,10 +79,9 @@ Interface MesQinterface
 
     /**
      * In method getConfig() only
-     *   process pid number
-     *   time, float (STARTTIME) and 'YmdHis' string (DATE)
+     *   time, float (STARTTIME)
+     *   'YmdHis' string (DATE)
      */
-    public const PID       = 'pid';
     public const STARTTIME = 'startTime';
     public const DATE      = 'date';
 }

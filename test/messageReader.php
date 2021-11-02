@@ -49,8 +49,12 @@ use function sprintf;
 include '../vendor/autoload.php';
 include './test.inc.php';
 
-static $FMT1 = 'pid %d %s : message %s%s';
-static $FMT2 = 'pid %s : %sread %d messages in %s sec%s';
+static $FMT1 = 'read PRIO %s%s';
+static $FMT2 = 'Tot  count msgs   : %s%s';
+static $FMT3 = 'Prio count msgs   : %s%s';
+static $FMT4 = 'Dir size (bytes)  : %d%s';
+static $FMT7 = 'pid %d %s : message %s%s';
+static $FMT8 = 'pid %s : %sread %d messages in %s sec%s';
 static $WAIT = 'wait for any prio message';
 static $SP0  = '';
 static $TTL  = 'total ';
@@ -72,7 +76,7 @@ $mesq = MesQ::singleton( $config );
 if( isArgSet( $argv, 5 )) {
     $prio = (int)$argv[5];
     if( isArgSet( $argv, 6 )) {
-        $prio = [ $prio, (int)$argv[6] ];
+        $prio = [ $prio, (int)$argv[6] ]; // PRIO
     }
     $mesq->setQueueType( MesQ::PRIO );
 }
@@ -81,25 +85,28 @@ echo $mesq->configToString() . PHP_EOL;
 $cnt  = $cnt2 = 0;
 $time2 = $time;
 if( $mesq->isQueueTypePrio()) {
+    echo sprintf( $FMT1, ( is_array($prio ) ? $prio[0] . '-' . $prio[1] : $prio ), PHP_EOL );
     while( ! $mesq->messageExist( $prio )) {
         if( true !== time_nanosleep( 0, 10000000 )) { // 0.01 sec
-            sleep( 1 );
+            wait( 1 );
         }
         echo $WAIT . PHP_EOL; // test
     }
 }
-echo 'count messages : ' . var_export( $mesq->size(), true ) . PHP_EOL; // test ###
-// echo 'count messages : ' . $mesq->size() . PHP_EOL;
-echo 'count dir size : ' . $mesq->getDirectorySize() . PHP_EOL;
+echo sprintf( $FMT2, var_export( $mesq->size(), true ), PHP_EOL ); // may return false
+if( $mesq->isQueueTypePrio()) {
+    echo sprintf( $FMT3, var_export( $mesq->size( $prio ), true ), PHP_EOL ); // may return false
+}
+echo sprintf( $FMT4, $mesq->getDirectorySize(), PHP_EOL );
 // wait some time
 wait( 1 );
 // retrieve messages
 while( $message = $mesq->getMessage( $prio )) {
     ++$cnt;
-    echo sprintf( $FMT1, $pid, getTime( $time ), $message->toString(), PHP_EOL );
+    echo sprintf( $FMT7, $pid, getTime( $time ), $message->toString(), PHP_EOL );
     ++$cnt2;
     if( 0 === ( $cnt % 1000 )) {
-        echo sprintf( $FMT2, $pid, $SP0, $cnt2, getTime( $time2 ), PHP_EOL );
+        echo sprintf( $FMT8, $pid, $SP0, $cnt2, getTime( $time2 ), PHP_EOL );
         $time2 = microtime( true );
         $cnt2  = 0;
     }
@@ -108,7 +115,7 @@ while( $message = $mesq->getMessage( $prio )) {
     // wait();
     /**/
 } // end while
-echo sprintf( $FMT2, $pid, $TTL, $cnt, getTime( $time ), PHP_EOL );
+echo sprintf( $FMT8, $pid, $TTL, $cnt, getTime( $time ), PHP_EOL );
 
 function wait( ? int $sec = 0 ) : void
 {

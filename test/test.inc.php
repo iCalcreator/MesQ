@@ -32,6 +32,8 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\MesQ;
 
+use Exception;
+
 use function is_dir;
 use function is_readable;
 use function is_writable;
@@ -42,6 +44,7 @@ use function random_int;
 /**
  * @param int $length
  * @return string
+ * @throws Exception
  */
 function generateRandomString( int $length ) : string
 {

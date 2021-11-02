@@ -6,8 +6,8 @@
 
 MesQ is a PHP lite disk based message queue manager
 
-* Assemple and queue (un-)frequently (incoming) messages
-* process once (scheduled)
+* Assemple and enqueue (un-)frequently (incoming) messages
+* dequeue once (scheduled?)
 
 
 MesQ  supports FIFO, LIFO and PRIOrity message queues
@@ -91,7 +91,7 @@ In your composer.json:
 }
 ```
 
-Version 1.4 supports PHP 7.4, 1.2 7.0.
+Version 1.6 supports PHP 8.0, 1.4 7.4, 1.2 7.0.
 
 ## Sponsorship
 Donation using [paypal.me/kigkonsult] are appreciated.

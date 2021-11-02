@@ -34,24 +34,14 @@ use DirectoryIterator;
 use Exception;
 use InvalidArgumentException;
 use RuntimeException;
+
 use function array_slice;
 use function count;
 use function date;
 use function end;
-use function explode;
-use function fclose;
-use function filesize;
-use function flock;
-use function fread;
-use function fopen;
-use function getmypid;
 use function glob;
 use function in_array;
-use function is_dir;
 use function is_array;
-use function is_file;
-use function is_int;
-use function is_readable;
 use function microtime;
 use function print_r;
 use function reset;
@@ -59,7 +49,7 @@ use function rtrim;
 use function serialize;
 use function sprintf;
 use function trim;
-use function unlink;
+use function var_export;
 
 /**
  * Class MesQ
@@ -103,25 +93,9 @@ class MesQ implements MesQinterface
     private string $directory;
 
     /**
-     * Incoming properties
-     */
-
-    /**
      * @var string
      */
     private string $queueType = self::FIFO;
-
-    /**
-     * @var int
-     */
-    private static int $serial = 0;
-
-    /**
-     * The process pid number
-     *
-     * @var int
-     */
-    private int $pid = 0;
 
     /**
      * Outgoing properties
@@ -163,11 +137,11 @@ class MesQ implements MesQinterface
     /**
      * MesQ constructor, private
      *
-     * @param array|string $queueName  config array or unique queue name
+     * @param array|string $queueName  config [ queueName, directory ] or unique queue name
      * @param null|string $directory   full path (of existing) directory, must exist with (php) user write/read rights
      * @throws InvalidArgumentException
      */
-    private function __construct( $queueName, ? string $directory = null )
+    private function __construct( array | string $queueName, ? string $directory = null )
     {
         $this->startTime = microtime( true );
         if( is_array( $queueName )) {
@@ -187,7 +161,7 @@ class MesQ implements MesQinterface
      * @return self
      * @throws InvalidArgumentException
      */
-    public static function factory(  $queueName, ? string $directory = null ) : MesQ
+    public static function factory( array | string $queueName, ? string $directory = null ) : MesQ
     {
         return new self( $queueName, $directory );
     }
@@ -200,16 +174,16 @@ class MesQ implements MesQinterface
      * @return self
      * @throws InvalidArgumentException
      */
-    public static function singleton(  $queueName, ? string $directory = null ) : MesQ
+    public static function singleton( array | string $queueName, ? string $directory = null ) : MesQ
     {
         if( is_array( $queueName )) { // config
             $sQn  = $queueName[self::QUEUENAME] ?? null;
-            self::assertQueueName( (string) $sQn );
+            Assert::nonEmptyString( (string)$sQn );
             $sDir = $queueName[self::DIRECTORY] ?? $sQn;
             $key  = serialize( $sQn . $sDir );
         }
         else {
-            self::assertQueueName( $queueName );
+            Assert::nonEmptyString( $queueName );
             $key  = serialize( $queueName . ( $directory ?? $queueName ));
         }
         if( ! isset( self::$instance[$key] )) {
@@ -228,7 +202,7 @@ class MesQ implements MesQinterface
      * @param null|string $key
      * @return array|false|float|int|string|null
      */
-    public function getConfig( ? string $key = null )
+    public function getConfig( ? string $key = null ) : float | bool | int | array | string | null
     {
         static $YMDHIS = 'YmdHis';
         if( empty( $key )) {
@@ -236,33 +210,22 @@ class MesQ implements MesQinterface
                 self::QUEUENAME       => $this->queueName,
                 self::DIRECTORY       => $this->directory,
                 self::QUEUETYPE       => $this->queueType,
-                self::PID             => $this->getPid(),
                 self::STARTTIME       => $this->startTime,
                 self::DATE            => date( $YMDHIS, (int) $this->startTime ),
                 self::READCHUNKSIZE   => $this->readChunkSize,
                 self::RETURNCHUNKSIZE => $this->returnChunkSize,
             ];
         }
-        switch( $key ) {
-            case self::QUEUENAME :
-                return $this->queueName;
-            case self::DIRECTORY :
-                return $this->directory;
-            case self::QUEUETYPE :
-                return $this->queueType;
-            case self::READCHUNKSIZE :
-                return $this->readChunkSize;
-            case self::RETURNCHUNKSIZE :
-                return $this->returnChunkSize;
-            case self::PID :
-                return $this->getPid();
-            case self::STARTTIME :
-                return $this->startTime;
-            case self::DATE :
-                return date( $YMDHIS, (int) $this->startTime );
-            default :
-                return false;
-        } // end switch
+        return match ( $key ) {
+            self::QUEUENAME       => $this->queueName,
+            self::DIRECTORY       => $this->directory,
+            self::QUEUETYPE       => $this->queueType,
+            self::READCHUNKSIZE   => $this->readChunkSize,
+            self::RETURNCHUNKSIZE => $this->returnChunkSize,
+            self::STARTTIME       => $this->startTime,
+            self::DATE            => date( $YMDHIS, (int)$this->startTime ),
+            default               => false,
+        }; // end switch
     }
 
     /**
@@ -326,7 +289,7 @@ class MesQ implements MesQinterface
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    public static function qPush( array $config, $message, ? int $priority = null ) : void
+    public static function qPush( array $config, mixed $message, ? int $priority = null ) : void
     {
         self::factory( $config )->push( $message, ( $priority ?? 0 ));
     }
@@ -348,78 +311,23 @@ class MesQ implements MesQinterface
      * @param mixed     $message
      * @param null|int  $priority   0 : lowest, 9 : highest
      * @return void
-     * @throws InvalidArgumentException
      * @throws RuntimeException
      * @since 1.03 - 2021-03-16
      */
-    public function push( $message, ? int $priority = 0 ) : void
+    public function push( mixed $message, ? int $priority = 0 ) : void
     {
-        static $FMT3 = 'Queue \'%s\', serialize error, file %s, message : %s';
-        static $FMT4 = 'Queue \'%s\', error on write, file %s, message : %s';
-        $fileName    = $this->getFileName( $priority );
+        static $FMT3 = 'Queue \'%s\', serialize error, message : %s';
         try {
-            $msg     = serialize( $message );
+            $msg     = serialize( Message::factory( $message ));
         }
         catch( Exception $e ) { // closure detected ?
             throw new RuntimeException(
-                sprintf( $FMT3, $this->getQueueName(), $fileName, print_r( $message, true ))
+                sprintf( $FMT3, $this->getQueueName(), print_r( $message, true )),
+                null,
+                $e
             );
         }
-        $result = file_put_contents( $fileName, $msg, LOCK_EX );
-        if(( false === $result ) || ( $result !== strlen( $msg ))) {
-            throw new RuntimeException( sprintf( $FMT4, $this->getQueueName(), $fileName, $msg ));
-        }
-    }
-
-    /**
-     * @param null|int $priority
-     * @return string
-     * @throws InvalidArgumentException
-     * @throws RuntimeException
-     */
-    private function getFileName( ? int $priority = 0 ) : string
-    {
-        static $FMT1  = '%s%d.%020d.%020d.%06d.';
-        static $FMT2  = 'Queue \'%s\', error on finding unique filename %s';
-        [ $prio, $usec, $sec ] = self::getPrioUsecSec( $this->queueType, $priority );
-        $timestampPrf = sprintf( $FMT1, $this->directory, $prio, $sec, $usec, $this->getPid());
-        $ix           = 0;
-        $fileName     = $timestampPrf . self::getSerial();
-        while( @is_file( $fileName )) {
-            $fileName = $timestampPrf . self::getSerial();
-            if( ++$ix > 10 ) { // emergency break??
-                throw new RuntimeException( sprintf( $FMT2, $this->getQueueName(), $this->getFileName()));
-            }
-        } // end while
-        return $fileName;
-    }
-
-    /**
-     * @param string   $queueType
-     * @param int|null $priority
-     * @return array
-     * @throws InvalidArgumentException
-     */
-    private static function getPrioUsecSec( string $queueType, ?int $priority = 0 ) : array
-    {
-        static $SP1   = ' ';
-        [ $usec, $sec ] = explode( $SP1, microtime() );
-        $sec  = (int)$sec;
-        $usec = ((int) $usec * 1000000 );
-        $prio = 0;
-        switch( $queueType ) {
-            case self::LIFO :
-                $sec  = PHP_INT_MAX - $sec;
-                $usec = PHP_INT_MAX - $usec;
-                break;
-            case self::PRIO :
-                self::assertPriority( $priority );
-                $prio = 9 - $priority;
-                break;
-            default : // FIFO
-                break;
-        } // end switch
-        return [ $prio, $usec, $sec ];
+        FileHandler::store( $this->queueName, $this->queueType, $this->directory, $priority ?? 0, $msg );
     }
 
     /**
@@ -431,7 +339,7 @@ class MesQ implements MesQinterface
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    public function insert( $message, ? int $priority = 0 ) : void
+    public function insert( mixed $message, ? int $priority = 0 ) : void
     {
         $this->push( $message, $priority );
     }
@@ -454,19 +362,20 @@ class MesQ implements MesQinterface
     /**
      * (Re)load message files array, return bool true on found otherwise false
      *
-     * @param null|int|array $priority
+     * @param int|array|null $priority
      * @return bool
      * @throws RuntimeException  on filesystem read error
      */
-    private function loadFiles( $priority = null ) : bool
+    private function loadFiles( null| int | array $priority = null ) : bool
     {
         static $FMT1 = 'Queue \'%s\', (glob) filesystem %s read error';
         $this->reset();
-        $pattern  = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$PATTERN;
+        $globPattern  = $this->getDirectory();
+        $globPattern .= $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$PATTERN;
         // glob-loaded file names are sorted alphabetically
-        if( false === ( $this->files = glob( $this->getDirectory() . $pattern ))) {
+        if( false === ( $this->files = glob( $globPattern ))) {
             throw new RuntimeException(
-                sprintf( $FMT1, $this->getQueueName(), $this->getDirectory() . $pattern )
+                sprintf( $FMT1, $this->getQueueName(), $globPattern )
             );
         }
         $globCnt = count( $this->files );
@@ -482,7 +391,7 @@ class MesQ implements MesQinterface
     }
 
     /**
-     * Return bool true if message(s) exist (i.e. reload internal static filesystemIterator)
+     * Return bool true if message(s) exist (i.e. force reload of internal static filesystemIterator)
      *
      * Usage
      * <directory> must exist with (php) user write/read rights
@@ -502,7 +411,7 @@ class MesQ implements MesQinterface
      * @return bool
      * @throws RuntimeException
      */
-    public function messageExist( $priority = null ) : bool
+    public function messageExist( null|int|array $priority = null ) : bool
     {
         return $this->loadFiles( $priority );
     }
@@ -525,11 +434,12 @@ class MesQ implements MesQinterface
      * </code>
      *
      * @param null|int|array $priority
-     * @return false|mixed
+     * @return mixed
+     * @throws InvalidArgumentException
      * @throws RuntimeException on message disk (read) error
      * @since 1.02 - 2021-03-16
      */
-    public function getMessage( $priority = null )
+    public function getMessage( null|int|array $priority = null ) : mixed
     {
         if( $this->ix >= $this->returnChunkSize ) {
             $this->reset();
@@ -540,7 +450,13 @@ class MesQ implements MesQinterface
             ! $this->messageExist( $priority )) {
             return false;
         } // end if
-        $content   = $this->getFileContents( $this->files[$this->ix] );
+        try {
+            $content = FileHandler::getFileContents( $this->queueName, $this->files[$this->ix] );
+        }
+        catch( Exception $e ) {
+            $this->reset();
+            throw $e;
+        }
         ++$this->ix;
         return $this->unserialize( $content );
     }
@@ -552,77 +468,39 @@ class MesQ implements MesQinterface
      * @return mixed
      * @throws RuntimeException on message disk (read) error
      */
-    public function pull( $priority = null )
+    public function pull( null|int|array $priority = null ) : mixed
     {
         return $this->getMessage( $priority );
     }
 
     /**
-     * @param string $fileName
-     * @return string
-     * @throws RuntimeException
-     */
-    private function getFileContents( string $fileName ) : string
-    {
-        static $FMT3 = 'Queue \'%s\' , error on open of message (file) : %s';
-        static $FMT4 = 'Queue \'%s\' , error on lock of message (file) : %s';
-        static $FMT5 = 'Queue \'%s\' , error on reading filesize of message (file) : %s';
-        static $FMT6 = 'Queue \'%s\' , error, filesize zero of message (file) : %s';
-        static $FMT7 = 'Queue \'%s\' , error on read of message (file) : %s';
-        static $FMT8 = 'Queue \'%s\' , error on delete of message (file) : %s';
-        static $RT = 'rb';
-        if( false === ( $fp = @fopen( $fileName, $RT ))) {
-            throw new RuntimeException( sprintf( $FMT3, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( flock( $fp,LOCK_SH ))) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT4, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( $filesize = @filesize( $fileName ))) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT5, $this->getQueueName(), $fileName ));
-        }
-        if( empty( $filesize )) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT6, $this->getQueueName(), $fileName ));
-        }
-        if( false === ( $content = fread( $fp, $filesize ))) {
-            fclose( $fp );
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT7, $this->getQueueName(), $fileName ));
-        }
-        fclose( $fp );
-        if( false === @unlink( $fileName )) {
-            $this->reset();
-            throw new RuntimeException( sprintf( $FMT8, $this->getQueueName(), $fileName ));
-        }
-        return $content;
-    }
-
-    /**
-     * @param string $content
+     * @param string $string
      * @return mixed
      * @throws RuntimeException
      * @since 1.02 - 2021-03-16
      */
-    private function unserialize( string $content )
+    private function unserialize( string $string ) : mixed
     {
-        static $FMT1 = 'Queue \'%s\' , error on unserialize of message (file) : %s, content %s';
-        static $FMT2 = 'Queue \'%s\' , false result on unserialize of message (file) : %s, content %s';
+        static $FMT1    = 'Queue \'%s\' , error on unserialize of message (file) : %s, content %s';
+        static $FMT2    = 'Queue \'%s\' , false result on unserialize of message (file) : %s, content %s';
+        static $FMT3    = 'Unknows class unserialized, %s (Message expected) data %s';
+        static $OPTIONS = [ 'allowed_classes' => [ Message::class ]];
         try {
-            $unserialized = unserialize( $content );
+            $unserialized = unserialize( $string, $OPTIONS );
         }
         catch( Exception $e ) {
-            $msg = sprintf( $FMT1, $this->queueName, $this->files[$this->ix], $content );
-            throw new RuntimeException( $msg, null, $e );
+            $msg = sprintf( $FMT1, $this->queueName, $this->files[$this->ix], $string );
+            throw new RuntimeException( $msg, 2, $e );
         }
-        if(( false === $unserialized ) && ( $content !== serialize( false ))) {
-            throw new RuntimeException( sprintf( $FMT2, $this->queueName, $this->files[$this->ix], $content ));
+        if(( false === $unserialized ) && ( $string !== serialize( false ))) {
+            throw new RuntimeException( sprintf( $FMT2, $this->queueName, $this->files[$this->ix], $string ));
         }
-        return $unserialized;
+        if( ! $unserialized instanceof Message ) {
+            throw new RuntimeException( sprintf( $FMT3, get_class( $unserialized ), $string ));
+        }
+        $data = $unserialized->getData();
+        unset( $unserialized );
+        return $data;
     }
 
     /**
@@ -635,7 +513,7 @@ class MesQ implements MesQinterface
      * @param null|int|array $priority
      * @return bool|int
      */
-    public function getQueueSize( $priority = null )
+    public function getQueueSize( null|int|array $priority = null ) : bool | int
     {
         $pattern = $this->isQueueTypePrio() ? self::getPriorityPattern( $priority ) : self::$PATTERN;
         if( false === ( $messages = glob( $this->getDirectory() . $pattern ))) {
@@ -650,7 +528,7 @@ class MesQ implements MesQinterface
      * @param null|int|array $priority
      * @return bool|int
      */
-    public function size ( $priority = null )
+    public function size( null|int|array $priority = null ) : bool | int
     {
         return $this->getQueueSize( $priority );
     }
@@ -677,45 +555,33 @@ class MesQ implements MesQinterface
 
     /**
      * @param null|int|array $priority
-     * @throws InvalidArgumentException
-     */
-    private static function assertPriority( $priority ) : void
-    {
-        static $FMTP  = 'Priority expected int and 0 <= priority <= 9, got ';
-        if( ! is_int( $priority ) || ( 0 > $priority ) || ( 9 < $priority )) {
-            throw new InvalidArgumentException( $FMTP . print_r( $priority, true ));
-        }
-    }
-
-    /**
-     * @param null|int|array $priority
      * @return string
      * @throws InvalidArgumentException
      */
-    private static function getPriorityPattern( $priority = null ) : string
+    private static function getPriorityPattern( null|int|array $priority = null ) : string
     {
-        static $PTRN = '[%d-%d]';
-        $pattern     = self::$SP0;
+        static $PTRN   = '[%d-%d]';
+        static $ERRTXT = 'Unvalid priority ';
+        $pattern       = self::$SP0;
         switch( true ) {
             case ( null === $priority ) :
                 $pattern = self::$PATTERN;
                 break;
             case is_array( $priority ) :
                 $min = reset( $priority );
-                self::assertPriority( $min );
+                Assert::priority( $min );
                 $min = 9 - $min;
                 $max = end( $priority );
-                self::assertPriority( $max );
+                Assert::priority( $max );
                 $max = 9 - $max;
                 if(( $min > $max ) && ( 2 === count( $priority ))) { // reverse..
                     $pattern = sprintf( $PTRN, $max, $min ) . substr( self::$PATTERN, 1 );
+                    break;
                 }
-                else {
-                    self::assertPriority( $priority ); // force exception
-                }
+                Assert::throwException( $ERRTXT . var_export( $priority, true ), 144 );
                 break;
             default :
-                self::assertPriority( $priority );
+                Assert::priority( $priority );
                 $pattern = ((string) ( 9 - $priority )) . substr( self::$PATTERN, 1 );
                 break;
         } // end switch
@@ -749,21 +615,9 @@ class MesQ implements MesQinterface
      */
     public function setQueueName( string $queueName ) : MesQ
     {
-        self::assertQueueName( $queueName );
+        Assert::nonEmptyString( $queueName );
         $this->queueName = $queueName;
         return $this;
-    }
-
-    /**
-     * @param string $queueName
-     * @throws InvalidArgumentException
-     */
-    private static function assertQueueName( string $queueName ) : void
-    {
-        static $FMT = 'QueueName can\'t be empty';
-        if( empty( $queueName )) {
-            throw new InvalidArgumentException( $FMT );
-        }
     }
 
     /**
@@ -813,55 +667,8 @@ class MesQ implements MesQinterface
     public function setDirectory( string $directory ) : void
     {
         $directory       = rtrim( trim( $directory ), DIRECTORY_SEPARATOR );
-        self::assertDirectory( $this->getQueueName(), $directory );
+        Assert::directory( $this->getQueueName(), $directory );
         $this->directory = $directory . DIRECTORY_SEPARATOR;
-    }
-
-    /**
-     * Assert directory
-     *
-     * @param string $queueName
-     * @param string $directory
-     * @throws InvalidArgumentException
-     */
-    private static function assertDirectory( string $queueName, string $directory ) : void
-    {
-        static $ERRFMTEMPTY = 'Queue \'%s\', directory can\'t be empty';
-        static $ERRFMTISDIR = 'Queue \'%s\', directory %s not exists and/or is not a directory';
-        static $ERRFMTWRTBL = 'Queue \'%s\', directory %s is not writeable/readable';
-        if( empty( $directory )) {
-            throw new InvalidArgumentException( sprintf( $queueName, $ERRFMTEMPTY ));
-        }
-        if( ! @is_dir( $directory )) {
-            throw new InvalidArgumentException( sprintf( $ERRFMTISDIR, $queueName, $directory ));
-        }
-        if( ! @is_writable( $directory ) || ! @is_readable( $directory )) {
-            throw new InvalidArgumentException( sprintf( $ERRFMTWRTBL, $queueName, $directory ));
-        }
-    }
-
-    /**
-     * @return int
-     */
-    private static function getSerial() : int
-    {
-        if( self::$serial === PHP_INT_MAX ) {
-            self::$serial = 0;
-        }
-        return ++self::$serial;
-    }
-
-    /**
-     * Return the process pid number
-     *
-     * @return int
-     */
-    private function getPid() : int
-    {
-        if( empty( $this->pid )) {
-            $this->pid = getmypid();
-        }
-        return $this->pid;
     }
 
     /**
